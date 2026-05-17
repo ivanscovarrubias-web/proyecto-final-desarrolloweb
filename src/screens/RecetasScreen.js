@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function RecetasScreen() {
   const [recetas, setRecetas] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [recipeDetails, setRecipeDetails] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -29,6 +30,7 @@ export default function RecetasScreen() {
   const fetchRecetas = async () => {
     try {
       setLoading(true);
+      setError(false);
       const stored = await AsyncStorage.getItem('pantry_items');
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -36,14 +38,16 @@ export default function RecetasScreen() {
           const ingredientes = parsed.map(item => item.nombre).join(',');
           const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredientes}&apiKey=8e1268f97a6a4ddc959da87e3467c3bc`;
           const response = await fetch(url);
+          if (!response.ok) throw new Error('Failed to fetch');
           const data = await response.json();
           setRecetas(data);
         } else {
           setRecetas([]);
         }
       }
-    } catch (error) {
-      console.error('Error fetching recipes:', error);
+    } catch (err) {
+      console.error('Error fetching recipes:', err);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -61,6 +65,13 @@ export default function RecetasScreen() {
 
       {loading ? (
         <ActivityIndicator size="large" color="#3498DB" style={{ marginTop: 50 }} />
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>No hay conexión a internet. Conéctate para buscar recetas</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchRecetas}>
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
       ) : recetas.length === 0 ? (
         <Text style={styles.emptyText}>No hay recetas disponibles. Agrega ingredientes a tu despensa.</Text>
       ) : (
@@ -195,6 +206,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#7F8C8D',
     marginTop: 20,
+    fontSize: 16,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    marginTop: 50,
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#E74C3C',
+    fontSize: 16,
+    marginBottom: 20,
+    fontWeight: 'bold',
+  },
+  retryButton: {
+    backgroundColor: '#3498DB',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
     fontSize: 16,
   },
   modalOverlay: {
