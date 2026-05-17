@@ -10,6 +10,7 @@ export default function AgregarScreen() {
   const [caducidad, setCaducidad] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [caducidadWeb, setCaducidadWeb] = useState(new Date().toISOString().split('T')[0]); // Fallback para web
+  const [mensajeExito, setMensajeExito] = useState('');
 
   const handleGuardar = async () => {
     if (!nombre.trim() || !categoria.trim()) {
@@ -47,7 +48,8 @@ export default function AgregarScreen() {
       setCaducidad(new Date());
       setCaducidadWeb(new Date().toISOString().split('T')[0]);
       
-      Alert.alert('Éxito', 'Producto agregado');
+      setMensajeExito('¡ Producto agregado correctamente !');
+      setTimeout(() => setMensajeExito(''), 3000);
     } catch (error) {
       console.error('Error al guardar el producto:', error);
       Alert.alert('Error', 'No se pudo guardar el producto.');
@@ -70,6 +72,12 @@ export default function AgregarScreen() {
     >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Agregar Producto</Text>
+
+        {mensajeExito !== '' && (
+          <View style={styles.successBanner}>
+            <Text style={styles.successText}>{mensajeExito}</Text>
+          </View>
+        )}
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
@@ -240,5 +248,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  successBanner: {
+    backgroundColor: '#D5F5E3',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderLeftWidth: 5,
+    borderLeftColor: '#2ECC71',
+  },
+  successText: {
+    color: '#27AE60',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

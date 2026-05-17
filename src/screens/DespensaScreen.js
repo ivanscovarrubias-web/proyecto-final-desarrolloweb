@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -14,6 +14,7 @@ const getExpirationColor = (caducidad) => {
   const diffTime = expDateLocal - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+  if (diffDays < 0) return '#4D1911'; // Caducado
   if (diffDays <= 3) return '#E74C3C'; // Rojo
   if (diffDays <= 7) return '#F39C12'; // Naranja
   return '#2ECC71'; // Verde
@@ -21,12 +22,29 @@ const getExpirationColor = (caducidad) => {
 
 export default function DespensaScreen() {
   const [productos, setProductos] = useState([]);
+  const [mensajeExito, setMensajeExito] = useState('');
 
   const loadProductos = async () => {
     try {
       const stored = await AsyncStorage.getItem('pantry_items');
       if (stored) {
-        setProductos(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        const colorPriority = {
+          '#4D1911': 1,
+          '#E74C3C': 2,
+          '#F39C12': 3,
+          '#7F8C8D': 4,
+          '#2ECC71': 5,
+        };
+        parsed.sort((a, b) => {
+          const colorA = getExpirationColor(a.caducidad);
+          const colorB = getExpirationColor(b.caducidad);
+          if (colorPriority[colorA] !== colorPriority[colorB]) {
+            return colorPriority[colorA] - colorPriority[colorB];
+          }
+          return new Date(a.caducidad) - new Date(b.caducidad);
+        });
+        setProductos(parsed);
       } else {
         setProductos([]);
       }
@@ -49,6 +67,8 @@ export default function DespensaScreen() {
         const filtrados = parsed.filter(item => item.id !== id);
         await AsyncStorage.setItem('pantry_items', JSON.stringify(filtrados));
         setProductos(filtrados);
+        setMensajeExito('¡ Producto eliminado correctamente !');
+        setTimeout(() => setMensajeExito(''), 3000);
       }
     } catch (error) {
       console.error('Error eliminando producto', error);
@@ -57,19 +77,32 @@ export default function DespensaScreen() {
   };
 
   const confirmEliminar = (id, nombre) => {
-    Alert.alert(
-      'Eliminar Producto',
-      `¿Estás seguro de que deseas eliminar ${nombre}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => eliminarProducto(id) }
-      ]
-    );
+    if (Platform.OS === 'web') {
+      const confirm = window.confirm(`¿Estás seguro de que deseas eliminar ${nombre}?`);
+      if (confirm) {
+        eliminarProducto(id);
+      }
+    } else {
+      Alert.alert(
+        'Eliminar Producto',
+        `¿Estás seguro de que deseas eliminar ${nombre}?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Eliminar', style: 'destructive', onPress: () => eliminarProducto(id) }
+        ]
+      );
+    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Mi Despensa</Text>
+
+      {mensajeExito !== '' && (
+        <View style={styles.successBanner}>
+          <Text style={styles.successText}>{mensajeExito}</Text>
+        </View>
+      )}
       
       {productos.length === 0 ? (
         <Text style={styles.emptyText}>Tu despensa está vacía. Agrega productos desde la pantalla de Agregar.</Text>
@@ -87,7 +120,8 @@ export default function DespensaScreen() {
                     <Text style={styles.categoryBadge}>{item.categoria}</Text>
                   </View>
                   <Text style={[styles.expirationText, { color: expirationColor, fontWeight: 'bold' }]}>
-                    Caduca: {item.caducidad}
+                    {expirationColor === '#4D1911' ? '⚠️ PRODUCTO CADUCADO: ' : 'Caduca: '}
+                    {item.caducidad}
                   </Text>
                 </View>
                 <TouchableOpacity 
@@ -178,5 +212,19 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  successBanner: {
+    backgroundColor: '#D5F5E3',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderLeftWidth: 5,
+    borderLeftColor: '#2ECC71',
+  },
+  successText: {
+    color: '#27AE60',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
