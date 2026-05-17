@@ -1,30 +1,106 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const productos = [
-  { id: '1', nombre: 'Manzanas', categoria: 'Frutas', caducidad: '2026-05-25' },
-  { id: '2', nombre: 'Queso Panela', categoria: 'Lácteos', caducidad: '2026-05-22' },
-  { id: '3', nombre: 'Frijoles Negros', categoria: 'Abarrotes', caducidad: '2027-01-10' },
-];
+const getExpirationColor = (caducidad) => {
+  if (!caducidad) return '#7F8C8D';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const [year, month, day] = caducidad.split('-');
+  const expDateLocal = new Date(year, month - 1, day);
+  
+  const diffTime = expDateLocal - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 3) return '#E74C3C'; // Rojo
+  if (diffDays <= 7) return '#F39C12'; // Naranja
+  return '#2ECC71'; // Verde
+};
 
 export default function DespensaScreen() {
+  const [productos, setProductos] = useState([]);
+
+  const loadProductos = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('pantry_items');
+      if (stored) {
+        setProductos(JSON.parse(stored));
+      } else {
+        setProductos([]);
+      }
+    } catch (error) {
+      console.error('Error cargando la despensa', error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProductos();
+    }, [])
+  );
+
+  const eliminarProducto = async (id) => {
+    try {
+      const stored = await AsyncStorage.getItem('pantry_items');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const filtrados = parsed.filter(item => item.id !== id);
+        await AsyncStorage.setItem('pantry_items', JSON.stringify(filtrados));
+        setProductos(filtrados);
+      }
+    } catch (error) {
+      console.error('Error eliminando producto', error);
+      Alert.alert('Error', 'No se pudo eliminar el producto');
+    }
+  };
+
+  const confirmEliminar = (id, nombre) => {
+    Alert.alert(
+      'Eliminar Producto',
+      `¿Estás seguro de que deseas eliminar ${nombre}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => eliminarProducto(id) }
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Mi Despensa</Text>
       
-      <FlatList
-        data={productos}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.productName}>{item.nombre}</Text>
-              <Text style={styles.categoryBadge}>{item.categoria}</Text>
-            </View>
-            <Text style={styles.expirationText}>Caduca: {item.caducidad}</Text>
-          </View>
-        )}
-      />
+      {productos.length === 0 ? (
+        <Text style={styles.emptyText}>Tu despensa está vacía. Agrega productos desde la pantalla de Agregar.</Text>
+      ) : (
+        <FlatList
+          data={productos}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => {
+            const expirationColor = getExpirationColor(item.caducidad);
+            return (
+              <View style={[styles.card, { borderLeftWidth: 5, borderLeftColor: expirationColor }]}>
+                <View style={styles.cardContent}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.productName}>{item.nombre}</Text>
+                    <Text style={styles.categoryBadge}>{item.categoria}</Text>
+                  </View>
+                  <Text style={[styles.expirationText, { color: expirationColor, fontWeight: 'bold' }]}>
+                    Caduca: {item.caducidad}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.deleteButton} 
+                  onPress={() => confirmEliminar(item.id, item.nombre)}
+                >
+                  <Text style={styles.deleteButtonText}>Eliminar</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -42,6 +118,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 40,
   },
+  emptyText: {
+    fontSize: 16,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    marginTop: 20,
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -52,17 +134,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardContent: {
+    flex: 1,
+    marginRight: 10,
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+    flexWrap: 'wrap',
   },
   productName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#34495E',
+    marginRight: 8,
+    marginBottom: 4,
   },
   categoryBadge: {
     backgroundColor: '#3498DB',
@@ -72,9 +163,20 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     fontSize: 12,
     overflow: 'hidden',
+    marginBottom: 4,
   },
   expirationText: {
     fontSize: 14,
-    color: '#7F8C8D',
+  },
+  deleteButton: {
+    backgroundColor: '#E74C3C',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  deleteButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });

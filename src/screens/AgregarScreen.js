@@ -1,46 +1,163 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, createElement } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AgregarScreen() {
+  const [nombre, setNombre] = useState('');
+  const [categoria, setCategoria] = useState('');
+  const [caducidad, setCaducidad] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [caducidadWeb, setCaducidadWeb] = useState(new Date().toISOString().split('T')[0]); // Fallback para web
+
+  const handleGuardar = async () => {
+    if (!nombre.trim() || !categoria.trim()) {
+      Alert.alert('Error', 'Por favor ingresa un nombre y selecciona una categoría.');
+      return;
+    }
+
+    try {
+      const fechaFinal = Platform.OS === 'web' 
+        ? caducidadWeb 
+        : caducidad.toISOString().split('T')[0];
+
+      if (!fechaFinal) {
+        Alert.alert('Error', 'Por favor selecciona una fecha de caducidad válida.');
+        return;
+      }
+
+      const nuevoProducto = {
+        id: Date.now().toString(),
+        nombre: nombre.trim(),
+        categoria,
+        caducidad: fechaFinal,
+      };
+
+      const existingItems = await AsyncStorage.getItem('pantry_items');
+      const parsedItems = existingItems ? JSON.parse(existingItems) : [];
+      
+      parsedItems.push(nuevoProducto);
+      
+      await AsyncStorage.setItem('pantry_items', JSON.stringify(parsedItems));
+      
+      // Limpiar formulario
+      setNombre('');
+      setCategoria('');
+      setCaducidad(new Date());
+      setCaducidadWeb(new Date().toISOString().split('T')[0]);
+      
+      Alert.alert('Éxito', 'Producto agregado');
+    } catch (error) {
+      console.error('Error al guardar el producto:', error);
+      Alert.alert('Error', 'No se pudo guardar el producto.');
+    }
+  };
+
+  const onChangeDate = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setCaducidad(selectedDate);
+    }
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Text style={styles.title}>Agregar Producto</Text>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Agregar Producto</Text>
 
-      <View style={styles.form}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Nombre del Producto</Text>
-          <TextInput 
-            style={styles.input}
-            placeholder="Ej. Tomates"
-            placeholderTextColor="#BDC3C7"
-          />
+        <View style={styles.form}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nombre del Producto</Text>
+            <TextInput 
+              style={styles.input}
+              placeholder="Ej. Tomates"
+              placeholderTextColor="#BDC3C7"
+              value={nombre}
+              onChangeText={setNombre}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Categoría</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={categoria}
+                onValueChange={(itemValue) => setCategoria(itemValue)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Selecciona una categoría..." value="" />
+                <Picker.Item label="Lácteos" value="Lácteos" />
+                <Picker.Item label="Verduras" value="Verduras" />
+                <Picker.Item label="Frutas" value="Frutas" />
+                <Picker.Item label="Carnes" value="Carnes" />
+                <Picker.Item label="Granos" value="Granos" />
+                <Picker.Item label="Bebidas" value="Bebidas" />
+                <Picker.Item label="Otros" value="Otros" />
+              </Picker>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Fecha de Caducidad</Text>
+            {Platform.OS === 'web' ? (
+              createElement('input', {
+                type: 'date',
+                value: caducidadWeb,
+                onChange: (e) => setCaducidadWeb(e.target.value),
+                style: {
+                  padding: '12px',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: '#E0E6ED',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  color: '#2C3E50',
+                  backgroundColor: '#F8FAFC',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                  outline: 'none'
+                }
+              })
+            ) : Platform.OS === 'ios' ? (
+              <DateTimePicker
+                value={caducidad}
+                mode="date"
+                display="inline"
+                onChange={onChangeDate}
+                style={styles.datePickerIOS}
+              />
+            ) : (
+              <>
+                <TouchableOpacity 
+                  style={styles.datePickerButton} 
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={styles.dateText}>{caducidad.toISOString().split('T')[0]}</Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={caducidad}
+                    mode="date"
+                    display="calendar"
+                    onChange={onChangeDate}
+                  />
+                )}
+              </>
+            )}
+          </View>
+
+          <TouchableOpacity style={styles.saveButton} onPress={handleGuardar}>
+            <Text style={styles.saveButtonText}>Guardar</Text>
+          </TouchableOpacity>
         </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Categoría</Text>
-          <TextInput 
-            style={styles.input}
-            placeholder="Ej. Verduras"
-            placeholderTextColor="#BDC3C7"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Fecha de Caducidad</Text>
-          <TextInput 
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#BDC3C7"
-          />
-        </View>
-
-        <TouchableOpacity style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>Guardar</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -85,6 +202,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2C3E50',
     backgroundColor: '#F8FAFC',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#E0E6ED',
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  datePickerButton: {
+    borderWidth: 1,
+    borderColor: '#E0E6ED',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#2C3E50',
+  },
+  datePickerIOS: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
   },
   saveButton: {
     backgroundColor: '#2ECC71',
