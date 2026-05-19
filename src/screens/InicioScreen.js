@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const getExpirationColor = (caducidad) => {
@@ -16,12 +16,13 @@ const getExpirationColor = (caducidad) => {
 
   if (diffDays < 0) return '#4D1911'; // Caducado
   if (diffDays <= 3) return '#E74C3C'; // Rojo
-  if (diffDays <= 7) return '#F39C12'; // Naranja
+  if (diffDays <= 5) return '#F39C12'; // Naranja
   return '#2ECC71'; // Verde
 };
 
 export default function InicioScreen() {
   const [proximos, setProximos] = useState([]);
+  const navigation = useNavigation();
 
   const loadDashboardData = async () => {
     try {
@@ -29,10 +30,19 @@ export default function InicioScreen() {
       if (stored) {
         const parsed = JSON.parse(stored);
 
-        const itemsAviso = parsed.map(item => ({
+        const itemsAviso = parsed.filter(item => {
+          if (!item.caducidad) return false;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const [year, month, day] = item.caducidad.split('-');
+          const expDateLocal = new Date(year, month - 1, day);
+          const diffTime = expDateLocal - today;
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays <= 5;
+        }).map(item => ({
           ...item,
           color: getExpirationColor(item.caducidad)
-        })).filter(item => item.color === '#4D1911' || item.color === '#E74C3C' || item.color === '#F39C12');
+        }));
 
         const colorPriority = {
           '#4D1911': 1,
@@ -42,9 +52,8 @@ export default function InicioScreen() {
 
         itemsAviso.sort((a, b) => {
           if (colorPriority[a.color] !== colorPriority[b.color]) {
-            return colorPriority[a.color] - colorPriority[b.color];
+            return (colorPriority[a.color] || 4) - (colorPriority[b.color] || 4);
           }
-
           const dateA = new Date(a.caducidad);
           const dateB = new Date(b.caducidad);
           return dateA - dateB;
@@ -67,29 +76,50 @@ export default function InicioScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Dashboard</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={styles.title}>Dashboard</Text>
+        <TouchableOpacity 
+          onPress={async () => {
+            await AsyncStorage.removeItem('alreadyLaunched');
+            alert('¡Listo! Reinicia la app o recarga para ver la Bienvenida de nuevo.');
+          }}
+          style={{ backgroundColor: '#E74C3C', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5, marginTop: 20 }}
+        >
+          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>Reset Onboarding</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Próximos a vencer</Text>
+        <Text style={styles.sectionTitle}>¡Urgente! Consumir pronto</Text>
         {proximos.length === 0 ? (
-          <Text style={{ color: '#7F8C8D', marginTop: 10 }}>No hay productos por caducar pronto.</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.motivationalText}>¡Tu despensa está al día!</Text>
+            <Text style={styles.emptySubtext}>No tienes productos por vencer pronto.</Text>
+          </View>
         ) : (
           <FlatList
             data={proximos}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <View style={[styles.item, { borderLeftWidth: 4, borderLeftColor: item.color, paddingLeft: 10 }]}>
-                <Text style={[styles.itemName, item.color === '#4D1911' && { color: item.color }]}>
-                  {item.color === '#4D1911' && '⚠️ '}
-                  {item.nombre}
+              <TouchableOpacity 
+                style={[styles.item, { borderLeftWidth: 4, borderLeftColor: item.color }]}
+                onPress={() => navigation.navigate('Despensa')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.itemInfo}>
+                  <Text style={[styles.itemName, item.color === '#4D1911' && { color: item.color }]}>
+                    {item.color === '#4D1911' && '⚠️ '}
+                    {item.nombre}
+                  </Text>
+                  <Text style={styles.itemCategory}>{item.categoria}</Text>
+                </View>
+                <Text style={[styles.itemDate, { color: item.color }]}>
+                  {item.color === '#4D1911' ? 'CADUCADO' : `Vence: ${item.caducidad}`}
                 </Text>
-                <Text style={[styles.itemDate, { color: item.color, fontWeight: 'bold' }]}>
-                  {item.color === '#4D1911' ? 'PRODUCTO CADUCADO: ' : 'Vence: '}
-                  {item.caducidad}
-                </Text>
-              </View>
+              </TouchableOpacity>
             )}
-            style={{ maxHeight: 300 }}
+            style={{ maxHeight: 400 }}
+            showsVerticalScrollIndicator={false}
           />
         )}
       </View>
@@ -119,34 +149,60 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 15,
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    marginBottom: 20,
+    marginBottom: 80,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#E74C3C',
     marginBottom: 15,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  motivationalText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2ECC71',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#7F8C8D',
   },
   item: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ECF0F1',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  itemInfo: {
+    flex: 1,
   },
   itemName: {
     fontSize: 16,
-    color: '#34495E',
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  itemCategory: {
+    fontSize: 12,
+    color: '#7F8C8D',
   },
   itemDate: {
     fontSize: 14,
-    color: '#7F8C8D',
+    fontWeight: 'bold',
   },
   footer: {
     position: 'absolute',
