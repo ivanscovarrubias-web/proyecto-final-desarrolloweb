@@ -96,3 +96,7 @@ A continuación se muestra el flujo básico de uso de la aplicación y su arquit
     N -->|Botón Eliminar| O[Filtrar arreglo sin el producto]
     O --> L
 ```
+
+## Funcionamiento de la aplicación 
+
+Link del video explicativo: https://drive.google.com/file/d/15AP_71j9Libx-2dOBn83Uc6qK4japRQC/view?usp=sharing
