@@ -3,8 +3,8 @@
 Una aplicación móvil inteligente diseñada para gestionar tu despensa y evitar el desperdicio de alimentos. Registra tus productos, supervisa las fechas de caducidad y obtén alertas visuales antes de que sea demasiado tarde.
 
 ## Integrantes
-- **Santiago Covarrubias Ivan Raul**
-- **Magaña Mojica Jesus Isamel**
+- **Santiago Covarrubias Ivan Raul** se especializo en el desarrollo de prompts y correccion de errores 
+- **Magaña Mojica Jesus Isamel** se especializo en la creacion de estilos, requerimientos y diagramas, funciones del programa asi como la redaccion de gran parte del README.md
 
 **Materia:** Desarrollo de Aplicaciones Web  
 **Profesor:** Zeus Cobian  
@@ -36,6 +36,16 @@ Una aplicación móvil inteligente diseñada para gestionar tu despensa y evitar
    - 🟠 **Naranja**: Entre 4 y 7 días para caducar.
    - 🔴 **Rojo**: 3 días o menos, o producto ya caducado.
 5. **Eliminación de Artículos**: Función para borrar artículos rápidamente una vez que han sido consumidos o desechados, con alertas de confirmación.
+
+---
+## Prompts principales utilizados
+
+1. "Quiero crear una aplicacion movil para gestionar una despensa"
+2. "Quiero que la aplicacion sea compatible con iOS y Android"
+3. "Quiero que la aplicacion sea compatible con Web"
+4. "Quiero que la aplicacion sea compatible con Android y Web"
+5. "Quiero que la aplicacion sea compatible con iOS y Web"
+6. "Quiero que la aplicacion sea compatible con iOS y Android y Web"
 
 ---
 
@@ -95,8 +105,17 @@ A continuación se muestra el flujo básico de uso de la aplicación y su arquit
     
     N -->|Botón Eliminar| O[Filtrar arreglo sin el producto]
     O --> L
-```
 
-## Funcionamiento de la aplicación 
+---
 
-Link del video explicativo: https://drive.google.com/file/d/15AP_71j9Libx-2dOBn83Uc6qK4japRQC/view?usp=sharing
+## Link del video explicativo
+
+https://drive.google.com/file/d/15AP_71j9Libx-2dOBn83Uc6qK4japRQC/view?usp=sharing
+
+---
+## Conclusiones del equipo
+
+**Magaña Mojica Jesus Ismael**: Me gusto mucho hacer este proyecto porque puede realizar una app de manera super sencilla y rápidamente, realmente la ia es muy útil para realizar apps de celular.
+**Santiago Covarrubias Ivan Raul**: Quede maravillado con el potencial con el cual se puede crear una aplicacion desde 0 de manera sencilla, crear y usar y ejecutar todas las herramientas que necesitábamos para crear esta app, desde la creacion hasta la simulacion y ejecucion en un celular 
+
+---
